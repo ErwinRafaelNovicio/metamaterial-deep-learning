@@ -1,0 +1,121 @@
+clear; 
+clc;
+close all
+
+% 1. Parametri
+% UNITA' DI MISURA TUTTE IN [m]
+R = 0.003;
+L = 0.050;
+
+y = 0.1; % y = precentuale di compressione 
+
+u = y*L;      % Spostamento imposto massimo (in metri)
+K = 0.5;    % Fattore vincolo 
+Sf = 1.2;   % Fattore di sicurezza contro il buckling (> 1)
+
+% x(1) = R, x(2) = L
+% 2. Initial guess
+x0 = [R, L]; 
+
+% 3. Limiti inferiori e superiori (Lower Bounds / Upper Bounds)
+% R e L devono essere strettamente positivi.
+lb = [0.0001, 0.0001]; 
+ub = [];     % Nessun limite superiore
+
+% 4. Vincoli lineari di disuguaglianza: A*x <= b
+% L >= 2R, ovvero 2R - L <= 0 -> 2*x(1) - 1*x(2) <= 0
+A = [5, -1];
+b = 0;
+
+% 5. Funzione Obiettivo (Minimizzare il Volume o il raggio)
+% Volume = pi * R^2 * L
+fun_obiettivo = @(x) pi * x(1)^2 * x(2);
+
+% oppure:
+% raggo
+% fun_obiettivo = @(x) x(1);
+
+% 6. Vincoli non lineari
+% Passiamo i parametri u, K, Sf alla funzione
+vincoli_nl = @(x) vincolo_buckling(x, y, K, Sf);
+
+% 7. Opzioni del risolutore
+% SQP è un algoritmo molto robusto per problemi fortemente non lineari
+options = optimoptions('fmincon', 'Algorithm', 'sqp', 'Display', 'iter');
+
+% 8. Risoluzione del problema
+[x_opt, vol_min, exitflag, output] = fmincon(fun_obiettivo, x0, A, b, [], [], lb, ub, vincoli_nl, options);
+
+
+%% RISULTATI
+
+fprintf('\n--- RISULTATI OTTIMIZZAZIONE ---\n');
+if exitflag > 0
+    fprintf('Ottimizzazione convergente con successo!\n');
+else
+    fprintf('Attenzione: l''ottimizzazione potrebbe non aver trovato un minimo globale.\n');
+end
+
+fprintf('Raggio ottimo (R): %.7f m\n', x_opt(1));
+fprintf('Altezza ottima (L): %.7f m\n', x_opt(2));
+fprintf('Volume minimo: %.5f m^3\n', vol_min);
+fprintf('Verifica geometrica (L/R): %.2f \n', x_opt(2)/x_opt(1));
+
+
+%% CHECK CARICHI
+
+R_min = x_opt(1);
+L_min = x_opt(2);
+
+% y = defined before
+u_new = 0.1 * L_min;
+
+A_min = (pi*R_min^2); % m^2
+E = 7.5e6; % Pa
+I_min = pi*(R_min)^4/4; % m^4
+
+Papp_min = (E*A_min/L_min)*u_new;
+
+Pcr_min = pi^2/(K*L_min)^2*(E*I_min);
+
+Ucr_min = Pcr_min * L_min / (E * A_min);
+
+
+
+fprintf('\n--- Risultati del Calcolo ---\n');
+fprintf('Modulo di Young (E):    %.2e Pa\n', E);
+fprintf('Area della sezione (A): %.4e m^2\n', A_min);
+fprintf('Momento d''inerzia (I):  %.4e m^4\n', I_min);
+fprintf('Carico Applicato (Papp): %.2f N\n', Papp_min);
+fprintf('Carico Critico (Pcr):    %.2f N\n', Pcr_min);
+fprintf('Spostamento Critico (Ucr):    %.5f m\n', Ucr_min);
+
+
+if Papp_min > Pcr_min
+    fprintf('\nATTENZIONE: Il carico applicato supera il carico critico (Buckling)!\n');
+else
+    fprintf('\nStato: La struttura è stabile.\n');
+end
+
+
+
+
+
+
+
+
+%% FUNCTION
+
+function [c, ceq] = vincolo_buckling(x, y, K, Sf)
+    
+    R = x(1);
+    L = x(2);
+    
+    % Vincolo di disuguaglianza non lineare c(x) <= 0
+    % La formula: u - (pi^2 * R^2) / (4 * K^2 * L * Sf) <= 0
+    u_dinamico = y * L; 
+    
+    % Vincolo di disuguaglianza non lineare
+    c = u_dinamico - (pi^2 * R^2) / (4 * K^2 * L * Sf);
+    ceq = [];
+end
