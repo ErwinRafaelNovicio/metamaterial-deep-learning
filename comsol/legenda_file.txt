@@ -1,0 +1,6 @@
+Lengenda file nella cartella:
+
+I File da rinominati da 0 a 4 sono i file che abbiamo sviluppato per le varie casistiche e per la validazione dei modelli.
+Il file 3d della beam con le curve BH non c'è perché già senza BH avevamo difficoltà a farlo convergere, e visto che il 2d axial era già stato validato abbiamo proseguito con quello.
+
+Il file "TPU_MR_beam_MF_Magnet_E_eq_lin_BH_axial" (senza numero) è il file parametrizzato da cui abbiamo estratto il dataset, infatti abbiamo fissato anche le dimensioni del magnete e dell'aria.
